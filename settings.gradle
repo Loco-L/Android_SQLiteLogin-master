@@ -1,0 +1,5 @@
+include ':app'
+include ':mylibrary'
+include ':main'
+project(':main').projectDir = new File(rootDir, 'app/')
+
