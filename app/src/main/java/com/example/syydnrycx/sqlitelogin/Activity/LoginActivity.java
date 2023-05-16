@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.StrictMode;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -77,6 +78,10 @@ public class LoginActivity extends Activity implements View.OnClickListener{
 
         initViews();
         sms_verification();
+        if (android.os.Build.VERSION.SDK_INT > 9) {
+            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+            StrictMode.setThreadPolicy(policy);
+        }
 
     }
 
@@ -156,20 +161,20 @@ public class LoginActivity extends Activity implements View.OnClickListener{
                 String pass=edit_password.getText().toString();
                 boolean flag=uService.login(name, pass);
                 if(flag) {
+
                     //前后端交互，给后端传递用户登录信息进行验证
                     //
-                    //包装传入数据
-                    //Map<String, String> params = new HashMap<String, String>();
-                    //params.put("s_id", "2054321");
-                    //params.put("password", "12345");
+                    //包装需要上传的Json数据
                     JSONObject params = new JSONObject();
                     try {
-                        params.put("s_id", "2054321");
+                        params.put("s_id", "1951606");
                         params.put("password", "12345");
                     } catch (JSONException e) {
                         throw new RuntimeException(e);
                     }
-                    Log.i("TAG",params.toString());
+                    //Log.i("TAG",params.toString());
+
+                    //给出路径
                     URL url = null;
                     try {
                         url = new URL("http://120.27.130.178:8080/student/login");
@@ -180,39 +185,41 @@ public class LoginActivity extends Activity implements View.OnClickListener{
                     //Log.i("TAG","开始连接");
                     //Log.i("TAG",params.toString());
                     String encode="utf-8";
-                    try {//把请求的主体写入正文！！
 
+                    try {//把请求的主体写入正文！！
+                        //传输所需配置，勿动，直接Copy
                         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                         connection.setConnectTimeout(3000);
                         connection.setRequestMethod("POST");
-                        //表示设置请求体的类型是文本类型
                         connection.setRequestProperty("Content-Type", "application/json");
                         connection.setRequestProperty("User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)");
                         connection.setDoInput(true);//表示从服务器获取数据
                         connection.setDoOutput(true);//表示向服务器写数据
-                        //是否使用缓存
-                        connection.setUseCaches(false);
-                        //获得上传信息的字节大小以及长度
-                        //connection.connect();   //连接，不写也可以。。？？有待了解
-                        //获得输出流，向服务器输出数据
-                        //OutputStream outputStream = connection.getOutputStream();
-                        //outputStream.write(mydata,0,mydata.length);
-                        //connection.getOutputStream().write(String.valueOf(params).getBytes());
-                        FileOutputStream fos = this.openFileOutput("jsonfile",Context.MODE_PRIVATE);
-                        fos.write(params.toString().getBytes());
-                        fos.close();
+                        connection.setUseCaches(false);//是否使用缓存
+                        connection.getOutputStream().write(String.valueOf(params).getBytes());
+
                         //获得服务器响应的结果和状态码
                         String result="";
-
                         int responseCode = connection.getResponseCode();
                         if(responseCode == HttpURLConnection.HTTP_OK){
+                            //获取服务器传来的数据（字符串），再转换为Json格式
                             result = changeInputeStream(connection.getInputStream(),encode);
-                            System.out.println(result);
-                            Log.i("TAG","连接成功");
                             Log.i("TAG",result);
+                            JSONObject res = new JSONObject(result);
+                            //调用UserInfo类
+                            UserInfo user=(UserInfo)getApplication();
+                            //读取Json中的对应数据
+                            String username = res.getJSONObject("data").getString("name");
+                            String userphone = res.getJSONObject("data").getString("phone");
+                            int usertotal = res.getJSONObject("data").getInt("total");
+                            //调用UserInfo中的赋值方法
+                            user.setname(username);
+                            user.setphone(userphone);
+                            user.settotal(usertotal);
+
+                            Log.i("TAG","连接成功");
                         }
                         Log.i("TAG","连接完毕");
-                        Log.i("TAG",result);
                     } catch (UnsupportedEncodingException e) {
                         // TODO Auto-generated catch block
                         Log.i("TAG","连接失败1");
@@ -221,10 +228,11 @@ public class LoginActivity extends Activity implements View.OnClickListener{
                         // TODO Auto-generated catch block
                         Log.i("TAG","连接失败2");
                         e.printStackTrace();
+                    } catch (JSONException e) {
+                        Log.i("TAG","连接失败3");
+                        throw new RuntimeException(e);
                     }
                     //
-                    UserInfo user=(UserInfo)getApplication();
-                    //user.setname("我是嫩爹");
 
                     Log.i("TAG","登录成功");
                     Intent intent=new Intent(LoginActivity.this,MainPage.class);
